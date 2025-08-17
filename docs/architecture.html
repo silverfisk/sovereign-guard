@@ -1,856 +1,106 @@
-<!DOCTYPE html><html lang="en"><head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>ESP32 Watchdog System: Architecture &amp; Implementation Analysis</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Tiempos+Headline:wght@400;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-    <style>
-        :root {
-            --primary: #1e40af;
-            --secondary: #64748b;
-            --accent: #0ea5e9;
-            --surface: #f8fafc;
-            --text: #1e293b;
-            --muted: #94a3b8;
-        }
-        
-        .font-tiempos { font-family: 'Tiempos Headline', serif; }
-        .font-inter { font-family: 'Inter', sans-serif; }
-        
-        body { 
-            font-family: 'Inter', sans-serif; 
-            color: var(--text);
-            line-height: 1.6;
-        }
-        
-        .hero-overlay {
-            background: linear-gradient(135deg, rgba(30, 64, 175, 0.9) 0%, rgba(14, 165, 233, 0.8) 100%);
-        }
-        
-        .toc-fixed {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 280px;
-            height: 100vh;
-            background: var(--surface);
-            border-right: 1px solid #e2e8f0;
-            z-index: 1000;
-            overflow-y: auto;
-            padding: 2rem 1.5rem;
-        }
-        
-        .main-content {
-            margin-left: 280px;
-            min-height: 100vh;
-        }
-        
-        .section-anchor {
-            scroll-margin-top: 2rem;
-        }
-        
-        .bento-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .bento-item {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border: 1px solid #e2e8f0;
-        }
-        
-        .citation {
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 500;
-            border-bottom: 1px dotted var(--primary);
-        }
-        
-        .citation:hover {
-            background: rgba(30, 64, 175, 0.1);
-        }
-        
-        .phase-card {
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            border-left: 4px solid var(--primary);
-            padding: 1.5rem;
-            margin: 1rem 0;
-            border-radius: 0 8px 8px 0;
-        }
-        
-        .architecture-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
-            margin: 2rem 0;
-        }
-        
-        .component-card {
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 1.5rem;
-            transition: all 0.2s ease;
-        }
-        
-        .component-card:hover {
-            border-color: var(--primary);
-            box-shadow: 0 4px 6px rgba(30, 64, 175, 0.1);
-        }
-        
-        @media (max-width: 1024px) {
-            .toc-fixed {
-                transform: translateX(-100%);
-                transition: transform 0.3s ease;
-            }
-            
-            .toc-fixed.open {
-                transform: translateX(0);
-            }
-            
-            .main-content {
-                margin-left: 0;
-            }
-        }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sovereign Guard – Architecture & Implementation (ESP-IDF/Arduino)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root{--ink:#0f172a;--muted:#475569;--surf:#f8fafc;--blue:#1d4ed8;--green:#059669;--amber:#b45309}
+    body{font-family:'Inter',sans-serif;color:var(--ink);background:#fff}
+    .mono{font-family:'JetBrains Mono',monospace}
+    .wrap{max-width:960px;margin:0 auto;padding:2rem 1.25rem}
+    .h{font-weight:800}
+    .card{background:var(--surf);border:1px solid #e2e8f0;border-radius:12px;padding:1rem 1.25rem}
+    .k{color:var(--blue);font-weight:700}
+    .pill{border:1px solid #e2e8f0;border-radius:999px;padding:.25rem .6rem;background:#fff}
+    pre{background:#0f172a;color:#e5e7eb;padding:1rem;border-radius:10px;overflow:auto}
+    code{font-family:'JetBrains Mono',monospace}
+    .grid2{display:grid;gap:1rem;grid-template-columns:1fr 1fr}
+    @media(max-width:900px){.grid2{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="pill mono text-sm">ESP32-CAM</span>
+      <span class="pill mono text-sm">ESP-IDF/Arduino</span>
+      <span class="pill mono text-sm">USB serial</span>
+    </div>
+    <h1 class="text-4xl h mb-2">Sovereign Guard – Architecture & Implementation</h1>
+    <h2 class="text-2xl h mt-8 mb-2">Executive Summary</h2>
+    <div class="card">
+      <ul class="mono text-[15px] text-[var(--muted)] space-y-2">
+        <li>• Device firmware in <b>ESP-IDF/Arduino</b>.</li>
+        <li>• ESP32-CAM USB is UART-only → <b>no USB HID</b>. BLE HID optional.</li>
+        <li>• No discrete secure element on classic ESP32. Roadmap: Secure Boot + Flash Encryption or external SE.</li>
+        <li>• Device owns policy & escalation; agent is data source + friendly actor.</li>
+      </ul>
+    </div>
 
-        @media (max-width: 768px) {
-            .bento-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .architecture-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .hero-overlay .text-5xl {
-                font-size: 2.25rem;
-                line-height: 2.5rem;
-            }
-            
-            .hero-overlay .text-xl {
-                font-size: 1rem;
-                line-height: 1.5rem;
-            }
-            
-            .container {
-                padding-left: 1rem;
-                padding-right: 1rem;
-            }
-        }
-    </style>
-  </head>
-
-  <body class="bg-gray-50">
-    <!-- Mobile Menu Toggle Button -->
-    <button id="mobile-menu-toggle" class="fixed top-4 left-4 z-50 p-2 rounded-lg bg-blue-600 text-white shadow-lg lg:hidden">
-      <i class="fas fa-bars"></i>
-    </button>
-
-    <!-- Table of Contents -->
-    <nav id="toc" class="toc-fixed">
-      <div class="mb-8">
-        <h3 class="font-tiempos text-lg font-bold text-gray-900 mb-4">Contents</h3>
-        <ul class="space-y-2 text-sm">
-          <li>
-            <a href="#executive-summary" class="block py-1 px-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600">Executive Summary</a>
-          </li>
-          <li>
-            <a href="#system-architecture" class="block py-1 px-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600">System Architecture</a>
-          </li>
-          <li>
-            <a href="#feasibility-analysis" class="block py-1 px-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600">Feasibility Analysis</a>
-          </li>
-          <li>
-            <a href="#recommended-libraries" class="block py-1 px-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600">Recommended Libraries</a>
-          </li>
-          <li>
-            <a href="#implementation-plan" class="block py-1 px-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600">Implementation Plan</a>
-          </li>
-          <li>
-            <a href="#security-model" class="block py-1 px-2 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-600">Security Model</a>
-          </li>
+    <h2 class="text-2xl h mt-8 mb-2">System Architecture</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3 class="h mb-2 k">ESP32 Device</h3>
+        <ul class="mono text-[15px] text-[var(--muted)] space-y-1">
+          <li>• UART 115200, line-delimited JSON (cJSON/ArduinoJson)</li>
+          <li>• Relay driver, watchdog state machine with backoff & lockout</li>
+          <li>• Optional SD audit log</li>
+          <li>• Roadmap: Secure Boot + Flash Encryption (IDF)</li>
         </ul>
       </div>
-    </nav>
-
-    <!-- Main Content -->
-    <main class="main-content">
-      <!-- Hero Section -->
-      <section class="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
-        <div class="hero-overlay absolute inset-0"></div>
-        <div class="relative z-10 max-w-6xl mx-auto px-6 text-center text-white">
-          <div class="bento-grid mb-8">
-            <div class="bento-item bg-white/10 backdrop-blur-sm border-white/20">
-              <div class="flex items-center mb-3">
-                <i class="fas fa-microchip text-2xl mr-3"></i>
-                <h3 class="font-tiempos text-lg font-bold">Hardware Security</h3>
-              </div>
-              <p class="text-sm text-white/80">ESP32 with Secure Boot &amp; Flash Encryption</p>
-            </div>
-
-            <div class="bento-item bg-white/10 backdrop-blur-sm border-white/20">
-              <div class="flex items-center mb-3">
-                <i class="fas fa-shield-alt text-2xl mr-3"></i>
-                <h3 class="font-tiempos text-lg font-bold">Cryptographic Trust</h3>
-              </div>
-              <p class="text-sm text-white/80">Ed25519 + GPG Multi-Level Authentication</p>
-            </div>
-          </div>
-
-          <h1 class="font-tiempos text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            <em class="italic">ESP32 Watchdog System</em>
-          </h1>
-          <p class="text-xl md:text-2xl mb-8 text-white/90 max-w-3xl mx-auto">
-            Architecture &amp; Implementation Analysis for Secure Remote Server Monitoring
-          </p>
-
-          <div class="flex flex-wrap justify-center gap-4 mt-8">
-            <div class="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
-              <span class="text-sm font-medium">MicroPython</span>
-            </div>
-            <div class="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
-              <span class="text-sm font-medium">OpenTelemetry</span>
-            </div>
-            <div class="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full">
-              <span class="text-sm font-medium">USB CDC-ACM</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Executive Summary -->
-      <section id="executive-summary" class="section-anchor py-16 bg-white">
-        <div class="max-w-4xl mx-auto px-6">
-          <h2 class="font-tiempos text-3xl font-bold mb-8 text-gray-900">Executive Summary</h2>
-
-          <div class="bg-blue-50 border-l-4 border-blue-500 p-6 mb-8 rounded-r-lg">
-            <p class="text-lg font-medium text-blue-900 mb-4">
-              The ESP32 Watchdog System is technically feasible and well-architected for remote server monitoring and maintenance.
-            </p>
-            <p class="text-blue-800">
-              The design leverages an ESP32 as a secure, USB-connected hardware watchdog, with viable solutions for implementing performant Ed25519 cryptography and robust communication protocols.
-            </p>
-          </div>
-
-          <div class="grid md:grid-cols-3 gap-6 mt-8">
-            <div class="text-center">
-              <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-check text-2xl text-green-600"></i>
-              </div>
-              <h3 class="font-semibold mb-2">Cryptography</h3>
-              <p class="text-sm text-gray-600">Ed25519 via mpy-mbedtls with hardware security</p>
-            </div>
-
-            <div class="text-center">
-              <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-usb text-2xl text-blue-600"></i>
-              </div>
-              <h3 class="font-semibold mb-2">Communication</h3>
-              <p class="text-sm text-gray-600">USB CDC-ACM with pyserial library</p>
-            </div>
-
-            <div class="text-center">
-              <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-layer-group text-2xl text-purple-600"></i>
-              </div>
-              <h3 class="font-semibold mb-2">Access Control</h3>
-              <p class="text-sm text-gray-600">Multi-level authentication model</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- System Architecture -->
-      <section id="system-architecture" class="section-anchor py-16 bg-gray-50">
-        <div class="max-w-6xl mx-auto px-6">
-          <h2 class="font-tiempos text-3xl font-bold mb-12 text-gray-900">System Architecture Overview</h2>
-
-          <div class="architecture-grid">
-            <!-- ESP32 Components -->
-            <div>
-              <h3 class="font-tiempos text-xl font-bold mb-6 text-blue-600">
-                <i class="fas fa-microchip mr-2"></i>ESP32 Device (MicroPython)
-              </h3>
-
-              <div class="space-y-4">
-                <div class="component-card">
-                  <h4 class="font-semibold text-gray-900 mb-2">crypto_manager.py</h4>
-                  <p class="text-sm text-gray-600 mb-2">Ed25519 key generation, message signing, and verification using <a href="#ref-146" class="citation">mpy-mbedtls</a>
-                  </p>
-                  <div class="flex items-center text-xs text-gray-500">
-                    <i class="fas fa-shield-alt mr-1"></i>Security Foundation
-                  </div>
-                </div>
-
-                <div class="component-card">
-                  <h4 class="font-semibold text-gray-900 mb-2">usb_comm.py</h4>
-                  <p class="text-sm text-gray-600 mb-2">USB CDC-ACM device interface with JSON message protocol</p>
-                  <div class="flex items-center text-xs text-gray-500">
-                    <i class="fas fa-exchange-alt mr-1"></i>Communication Layer
-                  </div>
-                </div>
-
-                <div class="component-card">
-                  <h4 class="font-semibold text-gray-900 mb-2">watchdog.py</h4>
-                  <p class="text-sm text-gray-600 mb-2">Hardware relay control for server power cycling and health monitoring</p>
-                  <div class="flex items-center text-xs text-gray-500">
-                    <i class="fas fa-heartbeat mr-1"></i>Core Functionality
-                  </div>
-                </div>
-
-                <div class="component-card">
-                  <h4 class="font-semibold text-gray-900 mb-2">metrics.py</h4>
-                  <p class="text-sm text-gray-600 mb-2">OpenTelemetry metrics storage on SD card using <a href="#ref-37" class="citation">usqlite</a>
-                  </p>
-                  <div class="flex items-center text-xs text-gray-500">
-                    <i class="fas fa-database mr-1"></i>Data Management
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Server Components -->
-            <div>
-              <h3 class="font-tiempos text-xl font-bold mb-6 text-green-600">
-                <i class="fas fa-server mr-2"></i>Server Daemon (Python)
-              </h3>
-
-              <div class="space-y-4">
-                <div class="component-card">
-                  <h4 class="font-semibold text-gray-900 mb-2">device_manager.py</h4>
-                  <p class="text-sm text-gray-600 mb-2">USB device detection and authorization using <a href="#ref-176" class="citation">pyserial</a>
-                  </p>
-                  <div class="flex items-center text-xs text-gray-500">
-                    <i class="fas fa-search mr-1"></i>Device Discovery
-                  </div>
-                </div>
-
-                <div class="component-card">
-                  <h4 class="font-semibold text-gray-900 mb-2">metrics_exporter.py</h4>
-                  <p class="text-sm text-gray-600 mb-2">System monitoring with <a href="#ref-172" class="citation">psutil</a> and OpenTelemetry</p>
-                  <div class="flex items-center text-xs text-gray-500">
-                    <i class="fas fa-chart-line mr-1"></i>Monitoring
-                  </div>
-                </div>
-
-                <div class="component-card">
-                  <h4 class="font-semibold text-gray-900 mb-2">command_processor.py</h4>
-                  <p class="text-sm text-gray-600 mb-2">Multi-level command routing with GPG signature verification</p>
-                  <div class="flex items-center text-xs text-gray-500">
-                    <i class="fas fa-cogs mr-1"></i>Command Handling
-                  </div>
-                </div>
-
-                <div class="component-card">
-                  <h4 class="font-semibold text-gray-900 mb-2">web_interface.py</h4>
-                  <p class="text-sm text-gray-600 mb-2">FastAPI-based management dashboard and terminal service</p>
-                  <div class="flex items-center text-xs text-gray-500">
-                    <i class="fas fa-desktop mr-1"></i>User Interface
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Feasibility Analysis -->
-      <section id="feasibility-analysis" class="section-anchor py-16 bg-white">
-        <div class="max-w-6xl mx-auto px-6">
-          <h2 class="font-tiempos text-3xl font-bold mb-12 text-gray-900">Feasibility Analysis</h2>
-
-          <div class="grid lg:grid-cols-2 gap-8 mb-12">
-            <div class="bg-green-50 border border-green-200 rounded-lg p-6">
-              <h3 class="font-tiempos text-xl font-bold mb-4 text-green-800">
-                <i class="fas fa-check-circle mr-2"></i>USB Communication
-              </h3>
-              <ul class="space-y-2 text-sm text-green-700">
-                <li>• ESP-IDF provides comprehensive <a href="#ref-1" class="citation">USB CDC-ACM support</a>
-                </li>
-                <li>• <a href="#ref-178" class="citation">pyserial</a> offers robust Linux device detection</li>
-                <li>• JSON protocol ensures compatibility</li>
-                <li>• Network isolation enhances security</li>
-              </ul>
-            </div>
-
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <h3 class="font-tiempos text-xl font-bold mb-4 text-blue-800">
-                <i class="fas fa-lock mr-2"></i>Cryptographic Security
-              </h3>
-              <ul class="space-y-2 text-sm text-blue-700">
-                <li>• <a href="#ref-146" class="citation">mpy-mbedtls</a> enables performant Ed25519</li>
-                <li>• ESP32 <a href="#ref-57" class="citation">Secure Boot &amp; Flash Encryption</a>
-                </li>
-                <li>• Hardware-protected key storage</li>
-                <li>• Multi-level authentication model</li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="bg-amber-50 border border-amber-200 rounded-lg p-6 mb-8">
-            <h3 class="font-tiempos text-xl font-bold mb-4 text-amber-800">
-              <i class="fas fa-exclamation-triangle mr-2"></i>Technical Challenge: Pure-Python Ed25519
-            </h3>
-            <p class="text-amber-700 mb-4">
-              Initial investigation revealed that a pure-Python implementation of Ed25519 on the ESP32 has <a href="#ref-117" class="citation">significant performance limitations</a>, making it unsuitable for practical use.
-            </p>
-            <div class="bg-white p-4 rounded border">
-              <h4 class="font-semibold text-amber-800 mb-2">Solution: mpy-mbedtls Integration</h4>
-              <p class="text-sm text-amber-700">
-                The recommended approach uses <a href="#ref-146" class="citation">mpy-mbedtls</a> MicroPython bindings for the mbedtls C library, providing hardware-accelerated cryptography with a Python-friendly interface.
-              </p>
-            </div>
-          </div>
-
-          <div class="grid lg:grid-cols-3 gap-6">
-            <div class="bg-gray-50 rounded-lg p-6">
-              <h4 class="font-semibold mb-3">Performance</h4>
-              <p class="text-sm text-gray-600">C-based cryptography provides native performance while maintaining Python development workflow</p>
-            </div>
-
-            <div class="bg-gray-50 rounded-lg p-6">
-              <h4 class="font-semibold mb-3">Security</h4>
-              <p class="text-sm text-gray-600">Hardware security features protect keys even with physical device access</p>
-            </div>
-
-            <div class="bg-gray-50 rounded-lg p-6">
-              <h4 class="font-semibold mb-3">Maintainability</h4>
-              <p class="text-sm text-gray-600">Structured architecture with clear separation of concerns</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Recommended Libraries -->
-      <section id="recommended-libraries" class="section-anchor py-16 bg-gray-50">
-        <div class="max-w-6xl mx-auto px-6">
-          <h2 class="font-tiempos text-3xl font-bold mb-12 text-gray-900">Recommended Libraries</h2>
-
-          <div class="grid lg:grid-cols-2 gap-8">
-            <!-- ESP32 Libraries -->
-            <div>
-              <h3 class="font-tiempos text-xl font-bold mb-6 text-blue-600">ESP32 (MicroPython)</h3>
-
-              <div class="space-y-4">
-                <div class="bg-white rounded-lg p-4 border border-gray-200">
-                  <h4 class="font-semibold text-gray-900 mb-2">Core Libraries</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• <strong>ujson:</strong> Lightweight JSON serialization</li>
-                    <li>• <strong>machine:</strong> Hardware abstraction layer</li>
-                    <li>• <strong>sdcard:</strong> SD card interface</li>
-                  </ul>
-                </div>
-
-                <div class="bg-white rounded-lg p-4 border border-gray-200">
-                  <h4 class="font-semibold text-gray-900 mb-2">Cryptography</h4>
-                  <p class="text-sm text-gray-600 mb-2">
-                    <strong>mpy-mbedtls:</strong> <a href="#ref-146" class="citation">MicroPython bindings for mbedtls</a> (Ed25519 support)
-                  </p>
-                  <div class="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                    Required for hardware-accelerated crypto
-                  </div>
-                </div>
-
-                <div class="bg-white rounded-lg p-4 border border-gray-200">
-                  <h4 class="font-semibold text-gray-900 mb-2">Database</h4>
-                  <p class="text-sm text-gray-600">
-                    <strong>usqlite:</strong> <a href="#ref-37" class="citation">SQLite interface for metrics storage</a>
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <!-- Server Libraries -->
-            <div>
-              <h3 class="font-tiempos text-xl font-bold mb-6 text-green-600">Server (Python)</h3>
-
-              <div class="space-y-4">
-                <div class="bg-white rounded-lg p-4 border border-gray-200">
-                  <h4 class="font-semibold text-gray-900 mb-2">Communication</h4>
-                  <p class="text-sm text-gray-600">
-                    <strong>pyserial:</strong> <a href="#ref-176" class="citation">Cross-platform serial communication</a>
-                  </p>
-                </div>
-
-                <div class="bg-white rounded-lg p-4 border border-gray-200">
-                  <h4 class="font-semibold text-gray-900 mb-2">Cryptography</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• <strong>cryptography:</strong> Ed25519 operations</li>
-                    <li>• <strong>python-gnupg:</strong> GPG signature verification</li>
-                  </ul>
-                </div>
-
-                <div class="bg-white rounded-lg p-4 border border-gray-200">
-                  <h4 class="font-semibold text-gray-900 mb-2">Monitoring &amp; Web</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• <strong>opentelemetry-api/sdk:</strong> <a href="#ref-176" class="citation">Metrics framework</a>
-                    </li>
-                    <li>• <strong>psutil:</strong> <a href="#ref-172" class="citation">System monitoring</a>
-                    </li>
-                    <li>• <strong>fastapi:</strong> Web interface framework</li>
-                    <li>• <strong>websockets:</strong> Real-time terminal service</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Implementation Plan -->
-      <section id="implementation-plan" class="section-anchor py-16 bg-white">
-        <div class="max-w-6xl mx-auto px-6">
-          <h2 class="font-tiempos text-3xl font-bold mb-12 text-gray-900">Phased Implementation Plan</h2>
-
-          <div class="space-y-8">
-            <!-- Phase 1 -->
-            <div class="phase-card">
-              <div class="flex items-center mb-4">
-                <div class="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-4">1</div>
-                <h3 class="font-tiempos text-xl font-bold text-gray-900">Foundation</h3>
-              </div>
-
-              <div class="grid md:grid-cols-3 gap-4">
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-blue-600 mb-2">ESP32 Crypto Module</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• Ed25519 key generation</li>
-                    <li>• Secure flash storage</li>
-                    <li>• Message signing/verification</li>
-                  </ul>
-                </div>
-
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-blue-600 mb-2">USB Communication</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• CDC-ACM device setup</li>
-                    <li>• JSON message protocol</li>
-                    <li>• Connection management</li>
-                  </ul>
-                </div>
-
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-blue-600 mb-2">Device Manager</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• USB device detection</li>
-                    <li>• Authorization workflow</li>
-                    <li>• Fingerprint management</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <!-- Phase 2 -->
-            <div class="phase-card">
-              <div class="flex items-center mb-4">
-                <div class="w-8 h-8 bg-green-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-4">2</div>
-                <h3 class="font-tiempos text-xl font-bold text-gray-900">Core Functionality</h3>
-              </div>
-
-              <div class="grid md:grid-cols-3 gap-4">
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-green-600 mb-2">Metrics System</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• OpenTelemetry integration</li>
-                    <li>• SQLite storage on SD card</li>
-                    <li>• Time-series management</li>
-                  </ul>
-                </div>
-
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-green-600 mb-2">Watchdog Controller</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• Hardware relay control</li>
-                    <li>• Health monitoring logic</li>
-                    <li>• Configurable timeouts</li>
-                  </ul>
-                </div>
-
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-green-600 mb-2">Access Control</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• Multi-level permissions</li>
-                    <li>• GPG integration</li>
-                    <li>• Command validation</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <!-- Phase 3 -->
-            <div class="phase-card">
-              <div class="flex items-center mb-4">
-                <div class="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-4">3</div>
-                <h3 class="font-tiempos text-xl font-bold text-gray-900">Advanced Features</h3>
-              </div>
-
-              <div class="grid md:grid-cols-2 gap-4">
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-purple-600 mb-2">Web Interface</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• FastAPI dashboard</li>
-                    <li>• Real-time metrics visualization</li>
-                    <li>• Device management UI</li>
-                    <li>• Command execution interface</li>
-                  </ul>
-                </div>
-
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-purple-600 mb-2">Terminal Service</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• WebSocket communication</li>
-                    <li>• PTY session management</li>
-                    <li>• GPG-authenticated access</li>
-                    <li>• Real-time I/O streaming</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <!-- Phase 4 -->
-            <div class="phase-card">
-              <div class="flex items-center mb-4">
-                <div class="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center text-sm font-bold mr-4">4</div>
-                <h3 class="font-tiempos text-xl font-bold text-gray-900">Integration &amp; Security</h3>
-              </div>
-
-              <div class="grid md:grid-cols-3 gap-4">
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-red-600 mb-2">NIP-07 Integration</h4>
-                  <p class="text-sm text-gray-600">Nostr-based decentralized authentication</p>
-                </div>
-
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-red-600 mb-2">MCP Protocol</h4>
-                  <p class="text-sm text-gray-600">AI-controlled automated responses</p>
-                </div>
-
-                <div class="bg-white p-4 rounded border">
-                  <h4 class="font-semibold text-red-600 mb-2">Security Hardening</h4>
-                  <ul class="text-sm text-gray-600 space-y-1">
-                    <li>• Secure Boot &amp; Flash Encryption</li>
-                    <li>• Penetration testing</li>
-                    <li>• Audit logging</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Security Model -->
-      <section id="security-model" class="section-anchor py-16 bg-gray-50">
-        <div class="max-w-6xl mx-auto px-6">
-          <h2 class="font-tiempos text-3xl font-bold mb-12 text-gray-900">Access Control &amp; Security Model</h2>
-
-          <div class="grid lg:grid-cols-2 gap-8 mb-12">
-            <div>
-              <h3 class="font-tiempos text-xl font-bold mb-6 text-gray-900">Multi-Level Access Control</h3>
-
-              <div class="space-y-4">
-                <div class="bg-white border border-gray-200 rounded-lg p-4">
-                  <div class="flex items-center mb-3">
-                    <div class="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-bold mr-3">1</div>
-                    <h4 class="font-semibold text-blue-600">Device Authentication</h4>
-                  </div>
-                  <p class="text-sm text-gray-600 mb-2">Ed25519 signature + authorized device key</p>
-                  <div class="text-xs text-gray-500">Permissions: Metrics, status, automated emergency power cycling</div>
-                </div>
-
-                <div class="bg-white border border-gray-200 rounded-lg p-4">
-                  <div class="flex items-center mb-3">
-                    <div class="w-6 h-6 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-bold mr-3">2</div>
-                    <h4 class="font-semibold text-green-600">Admin Operations</h4>
-                  </div>
-                  <p class="text-sm text-gray-600 mb-2">Level 1 + Valid GPG signature from admin key</p>
-                  <div class="text-xs text-gray-500">Permissions: Manual reboot, configuration changes, device management</div>
-                </div>
-
-                <div class="bg-white border border-gray-200 rounded-lg p-4">
-                  <div class="flex items-center mb-3">
-                    <div class="w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-bold mr-3">3</div>
-                    <h4 class="font-semibold text-purple-600">Terminal Access</h4>
-                  </div>
-                  <p class="text-sm text-gray-600 mb-2">Level 2 + Additional GPG signature + active session</p>
-                  <div class="text-xs text-gray-500">Permissions: Interactive shell, system debugging, log access</div>
-                </div>
-
-                <div class="bg-white border border-gray-200 rounded-lg p-4">
-                  <div class="flex items-center mb-3">
-                    <div class="w-6 h-6 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center text-xs font-bold mr-3">4</div>
-                    <h4 class="font-semibold text-orange-600">MCP (AI Control)</h4>
-                  </div>
-                  <p class="text-sm text-gray-600 mb-2">Level 1 + MCP service authentication</p>
-                  <div class="text-xs text-gray-500">Permissions: Automated operations, predictive maintenance</div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h3 class="font-tiempos text-xl font-bold mb-6 text-gray-900">Security Considerations</h3>
-
-              <div class="space-y-4">
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 class="font-semibold text-blue-800 mb-2">
-                    <i class="fas fa-network-wired mr-2"></i>Network Isolation
-                  </h4>
-                  <p class="text-sm text-blue-700">
-                    USB-only communication prevents network attacks. Wi-Fi/Bluetooth disabled in firmware configuration.
-                  </p>
-                </div>
-
-                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h4 class="font-semibold text-green-800 mb-2">
-                    <i class="fas fa-key mr-2"></i>Key Management
-                  </h4>
-                  <p class="text-sm text-green-700">
-                    Private keys never leave devices. Support for key rotation and immediate revocation.
-                  </p>
-                </div>
-
-                <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <h4 class="font-semibold text-purple-800 mb-2">
-                    <i class="fas fa-microchip mr-2"></i>Hardware Security
-                  </h4>
-                  <p class="text-sm text-purple-700">
-                    <a href="#ref-57" class="citation">ESP32 Secure Boot &amp; Flash Encryption</a> protect firmware and keys from physical attacks.
-                  </p>
-                </div>
-
-                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <h4 class="font-semibold text-amber-800 mb-2">
-                    <i class="fas fa-clipboard-list mr-2"></i>Audit Logging
-                  </h4>
-                  <p class="text-sm text-amber-700">
-                    Comprehensive logging of security events, authentication attempts, and command executions.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- References -->
-      <section class="py-16 bg-white border-t">
-        <div class="max-w-4xl mx-auto px-6">
-          <h2 class="font-tiempos text-2xl font-bold mb-8 text-gray-900">References</h2>
-          <div class="grid md:grid-cols-2 gap-4 text-sm">
-            <div id="ref-1" class="border-l-2 border-blue-500 pl-3">
-              <strong>[1]</strong> ESP-IDF USB Device Documentation
-              <a href="https://docs.espressif.com/projects/esp-idf/en/v4.4/esp32s3/api-reference/peripherals/usb_device.html" class="citation">ESP32 USB Device API Reference</a>
-            </div>
-            <div id="ref-6" class="border-l-2 border-blue-500 pl-3">
-              <strong>[6]</strong> ESP-IDF USB CDC-ACM Configuration
-              <a href="https://docs.espressif.com/projects/esp-idf/en/v4.4/esp32s3/api-reference/peripherals/usb_device.html" class="citation">USB Device Programming Guide</a>
-            </div>
-            <div id="ref-36" class="border-l-2 border-green-500 pl-3">
-              <strong>[36]</strong> Python sqlite3 Documentation
-              <a href="https://docs.python.org/3/library/sqlite3.html" class="citation">SQLite3 Python Interface</a>
-            </div>
-            <div id="ref-37" class="border-l-2 border-green-500 pl-3">
-              <strong>[37]</strong> usqlite MicroPython Library
-              <a href="https://github.com/spatialdude/usqlite" class="citation">GitHub Repository</a>
-            </div>
-            <div id="ref-41" class="border-l-2 border-green-500 pl-3">
-              <strong>[41]</strong> SQLite with ESP32 PLC
-              <a href="https://www.industrialshields.com/blog/arduino-industrial-1/how-to-use-sqlite-with-esp32-plc-549" class="citation">Industrial Shields Tutorial</a>
-            </div>
-            <div id="ref-42" class="border-l-2 border-green-500 pl-3">
-              <strong>[42]</strong> ESP32 IDF SQLite3 Integration
-              <a href="https://blog.csdn.net/gitblog_01001/article/details/142430201" class="citation">Technical Blog Post</a>
-            </div>
-            <div id="ref-57" class="border-l-2 border-purple-500 pl-3">
-              <strong>[57]</strong> ESP32 Flash Encryption and Secure Boot
-              <a href="https://developer.espressif.com/blog/flash-encryption-and-secure-boot/" class="citation">Espressif Developer Blog</a>
-            </div>
-            <div id="ref-117" class="border-l-2 border-red-500 pl-3">
-              <strong>[117]</strong> Python Ed25519 Implementation
-              <a href="https://github.com/warner/python-ed25519" class="citation">GitHub Repository</a>
-            </div>
-            <div id="ref-146" class="border-l-2 border-purple-500 pl-3">
-              <strong>[146]</strong> mpy-mbedtls MicroPython Bindings
-              <a href="https://github.com/Carglglz/mpy-mbedtls" class="citation">GitHub Repository</a>
-            </div>
-            <div id="ref-157" class="border-l-2 border-blue-500 pl-3">
-              <strong>[157]</strong> sshkey-tools Python Package
-              <a href="https://pypi.org/project/sshkey-tools/" class="citation">PyPI Package</a>
-            </div>
-            <div id="ref-158" class="border-l-2 border-blue-500 pl-3">
-              <strong>[158]</strong> AWS EC2 Key Fingerprint Documentation
-              <a href="https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/keypairinfo/key_fingerprint.html" class="citation">Boto3 Documentation</a>
-            </div>
-            <div id="ref-159" class="border-l-2 border-blue-500 pl-3">
-              <strong>[159]</strong> Cryptography.io Serialization
-              <a href="https://cryptography.io/en/latest/hazmat/primitives/asymmetric/serialization/" class="citation">Cryptography Documentation</a>
-            </div>
-            <div id="ref-172" class="border-l-2 border-orange-500 pl-3">
-              <strong>[172]</strong> OpenTelemetry Python Metrics
-              <a href="https://uptrace.dev/get/opentelemetry-python/metrics" class="citation">Uptrace Documentation</a>
-            </div>
-            <div id="ref-176" class="border-l-2 border-teal-500 pl-3">
-              <strong>[176]</strong> Python Performance Monitoring
-              <a href="https://last9.io/blog/python-performance-monitoring/" class="citation">Last9 Blog Post</a>
-            </div>
-            <div id="ref-177" class="border-l-2 border-indigo-500 pl-3">
-              <strong>[177]</strong> Raspberry Pi Serial Port Programming
-              <a href="https://forums.raspberrypi.com/viewtopic.php?t=152726" class="citation">Raspberry Pi Forum</a>
-            </div>
-            <div id="ref-178" class="border-l-2 border-indigo-500 pl-3">
-              <strong>[178]</strong> Linux Serial Port Programming
-              <a href="https://www.xanthium.in/linux-serial-port-programming-using-python-pyserial-and-arduino-avr-pic-microcontroller" class="citation">Xanthium Tutorial</a>
-            </div>
-            <div id="ref-179" class="border-l-2 border-indigo-500 pl-3">
-              <strong>[179]</strong> PySerial Connection Management
-              <a href="https://forum.arduino.cc/t/arduino-pyserial-only-reading-data-on-first-python-execution/1268053" class="citation">Arduino Forum</a>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <script>
-        // Mobile menu toggle
-        document.getElementById('mobile-menu-toggle').addEventListener('click', function() {
-            document.getElementById('toc').classList.toggle('open');
-        });
-
-        // Smooth scrolling for anchor links
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                    
-                    // Close mobile menu after clicking a link
-                    document.getElementById('toc').classList.remove('open');
-                }
-            });
-        });
-
-        // Close mobile menu when clicking outside
-        document.addEventListener('click', function(event) {
-            const toc = document.getElementById('toc');
-            const mobileMenuButton = document.getElementById('mobile-menu-toggle');
-            
-            if (toc.classList.contains('open') && 
-                !toc.contains(event.target) && 
-                event.target !== mobileMenuButton) {
-                toc.classList.remove('open');
-            }
-        });
-    </script>
-  
-
-</body></html>
+      <div class="card">
+        <h3 class="h mb-2 k">Server Daemon (Python)</h3>
+        <ul class="mono text-[15px] text-[var(--muted)] space-y-1">
+          <li>• pyserial for USB; psutil for metrics; optional FastAPI dashboard</li>
+          <li>• Whitelist of restartable services</li>
+          <li>• Optional verification of pre‑signed command bundles (GPG/Ed25519)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h2 class="text-2xl h mt-8 mb-2">Escalation Ladder & Protocol</h2>
+    <p class="mono text-[15px] text-[var(--muted)]">The device is authoritative. It requests soft actions first, then escalates.</p>
+
+<pre><code># Agent → Device heartbeat (every 10 s)
+{"t":"hb","ts":1699999999,"cpu":0.42,"load1":1.8,"svc_ok":true}
+
+# Device → Agent requests
+{"t":"request","req_id":"b8e1","action":"restart_service","service":"myapp.service",
+ "reason":"svc_unhealthy","deadline_ms":30000}
+
+{"t":"request","req_id":"aa77","action":"reboot_os","reason":"degraded_persist","deadline_ms":90000}
+
+# Agent → Device replies
+{"t":"ack","req_id":"b8e1","status":"executing"}
+{"t":"done","req_id":"b8e1","ok":true,"msg":"systemctl restart done"}
+</code></pre>
+
+    <h2 class="text-2xl h mt-8 mb-2">Security Model</h2>
+    <div class="card">
+      <ul class="mono text-[15px] text-[var(--muted)] space-y-2">
+        <li>• MVP: keys in flash; protect physical access; log all actions.</li>
+        <li>• Production path: ESP-IDF <b>Secure Boot + Flash Encryption</b>.</li>
+        <li>• Option: External secure element (ATECC608A) via I²C.</li>
+        <li>• Anti‑replay: add nonces and timestamps to request/response; optional Ed25519/HMAC.</li>
+      </ul>
+    </div>
+
+    <h2 class="text-2xl h mt-8 mb-2">Implementation Plan</h2>
+    <ol class="mono text-[15px] text-[var(--muted)] space-y-2">
+      <li>1) Firmware skeleton (UART, JSON, state machine, relay GPIO)</li>
+      <li>2) Python agent (pyserial + psutil heartbeat; request handler for restart/reboot)</li>
+      <li>3) Stability tests (grace windows, backoff, lockout)</li>
+      <li>4) Optional BLE HID module; optional SD audit log</li>
+      <li>5) Roadmap hardening (Secure Boot/Flash Encryption)</li>
+    </ol>
+
+    <h2 class="text-2xl h mt-8 mb-2">USB/HID Notes</h2>
+    <p class="mono text-[15px] text-[var(--muted)]">
+      ESP32‑CAM exposes only USB‑UART via its onboard bridge; it cannot present as a USB HID keyboard.
+      For composite USB (CDC + HID), use ESP32‑S2/S3 or RP2040 in a subsequent hardware revision.
+    </p>
+  </div>
+</body>
+</html>

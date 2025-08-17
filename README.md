@@ -1,71 +1,79 @@
-# Sovereign Guard
+# Sovereign Guard (MVP)
+Hardware watchdog for secure server recovery using **ESP32-CAM** (firmware in **ESP-IDF/Arduino C/C++**) and a **Python** agent over USB serial.
 
-Sovereign Guard is a hardware-based watchdog for secure server monitoring using an ESP32 and cryptographic authentication. It provides an air-gapped, secure way to monitor and manage servers, ensuring that your infrastructure is always under your control.
+## TL;DR
+- **Device is the boss**: it enforces policy and escalation.
+- **Agent reports health** and executes *friendly* actions when asked (restart service / reboot OS).
+- If soft actions fail or time out, the **device hard power-cycles** via relay.
 
-## Features
+---
 
-*   **Hardware Watchdog:** An ESP32-based device that monitors your server at the hardware level.
-*   **Secure USB Communication:** All communication between the watchdog and the server is done over a USB connection, making it immune to network-based attacks.
-*   **Cryptographic Authentication:** Uses Ed25519 signatures and PGP key management to ensure that only authorized users can control the watchdog.
-*   **Multi-level Access Control:** A hierarchical security model with device, admin, and superuser levels of access.
-*   **Hardware-Protected Key Storage:** Private keys are stored in the ESP32's secure element and can't be extracted.
-*   **Open Source and Self-Hosted:** Sovereign Guard is fully open source and can be self-hosted, giving you complete control over your monitoring infrastructure.
+## Key facts
+- **Firmware**: ESP-IDF.
+- **USB**: ESP32-CAM’s micro‑USB is **USB‑UART only** (serial). It cannot be a USB HID keyboard.
+  - Optional: **BLE HID** keyboard (Ctrl+Alt+Del) if the host has Bluetooth.
+- **Key storage**: classic ESP32 has **no discrete secure element**.
+  - MVP: store device keys in flash; keep serial physical access controlled.
+  - Roadmap: enable **Secure Boot + Flash Encryption** (ESP-IDF) or add an external secure element (e.g., ATECC608A).
+
+---
 
 ## Architecture
+### Device (ESP32-CAM)
+- UART @ 115200, JSON lines (cJSON/ArduinoJson)
+- Relay control + timers, watchdog state machine (backoff, lockout)
+- Optional SD audit log
+- **Roadmap**: Secure Boot + Flash Encryption (IDF), BLE HID
 
-The Sovereign Guard system consists of two main components: the Sovereign Guardian Module (the ESP32 device) and the Sovereign Server Stack (a Python daemon that runs on your server).
+### Server (Python)
+- `pyserial` for USB, `psutil` for metrics, optional FastAPI UI
+- Service whitelist for restarts (e.g., `myapp.service`, `nginx.service`)
+- Optional signature verification for pre-signed command bundles
 
-### Sovereign Guardian Module (ESP32)
+---
 
-*   `crypto_manager.py`: Manages Ed25519 key generation, message signing, and verification using the `mpy-mbedtls` library.
-*   `usb_comm.py`: Handles communication with the server over a USB CDC-ACM connection.
-*   `watchdog.py`: Controls the hardware relay for power cycling the server and monitors its health.
-*   `metrics.py`: Stores OpenTelemetry metrics on an SD card using `usqlite`.
+## Escalation ladder & protocol
+**Levels:**
+1. Device → Agent: `restart_service` (systemd restart)
+2. Device → Agent: `reboot_os` (friendly reboot)
+3. Device: hard **relay** power cycle
 
-### Sovereign Server Stack (Python)
+**Messages (one JSON per line):**
+```
+# Agent → Device heartbeat (every 10 s)
+{"t":"hb","ts":1699999999,"cpu":0.42,"load1":1.8,"svc_ok":true}
 
-*   `device_manager.py`: Detects and authorizes the ESP32 watchdog using the `pyserial` library.
-*   `metrics_exporter.py`: Monitors system health using `psutil` and OpenTelemetry.
-*   `command_processor.py`: Verifies GPG signatures on commands sent to the watchdog.
-*   `web_interface.py`: A FastAPI-based web interface for managing the watchdog and viewing metrics.
+# Device → Agent requests
+{"t":"request","req_id":"b8e1","action":"restart_service","service":"myapp.service",
+ "reason":"svc_unhealthy","deadline_ms":30000}
 
-## Security
+{"t":"request","req_id":"aa77","action":"reboot_os","reason":"degraded_persist","deadline_ms":90000}
 
-Sovereign Guard is designed with security as a top priority. Here are some of the key security features:
+# Agent → Device replies
+{"t":"ack","req_id":"b8e1","status":"executing"}
+{"t":"done","req_id":"b8e1","ok":true,"msg":"systemctl restart done"}
+```
 
-*   **Air-Gapped Communication:** The watchdog is connected to the server via USB, which means it's not exposed to the network and can't be attacked remotely.
-*   **Hardware Security:** The ESP32's Secure Boot and Flash Encryption features are used to create a hardware root of trust, protecting the device from physical attacks.
-*   **Multi-Level Authentication:** The system uses a multi-level authentication model that requires different levels of cryptographic verification for different actions.
-*   **Key Management:** Private keys are generated and stored on the ESP32 and are never exposed. The system also supports key rotation and revocation.
+**Policy bits (device):** heartbeat timeout → request restart; on failure → request reboot; on failure/timeout → relay.
+Use stability window (e.g., 90s), backoff (10 min), and lockout (e.g., 3 actions/hour).
 
-## Getting Started
+---
 
-To get started with Sovereign Guard, you'll need an ESP32 device and a server to monitor. Here are the basic steps to get up and running:
+## Getting started
+1. **Flash firmware** (ESP-IDF/Arduino) with your GPIO config for the relay.
+2. **Wire the relay** (respect PSU/motherboard timing; typical off 6–10 s).
+3. **Start the agent**: `pip install pyserial psutil` then run your `main.py` loop sending heartbeat JSONs.
+4. **Test**: stop the agent and observe device escalation.
 
-1.  **Hardware Setup:** Flash the Sovereign Guard firmware onto your ESP32 device and connect it to your server via USB.
-2.  **Software Installation:** Install the Python dependencies for the server daemon.
-3.  **Configuration:** Configure the watchdog and the server daemon with your desired settings.
-4.  **Deployment:** Start the server daemon and you're ready to go!
+---
 
-For more detailed instructions, please refer to the [Deployment Guide](index.html#deployment).
+## Roadmap
+- ESP32‑S2/S3 or RP2040 for **USB composite** (CDC + HID)
+- Secure Boot + Flash Encryption
+- External secure element (ATECC608A) for at-rest key isolation
+- Signed request/response (Ed25519/HMAC) with anti‑replay
 
-## Technologies Used
-
-### ESP32
-
-*   [MicroPython](https://micropython.org/)
-*   [mpy-mbedtls](https://github.com/Carglglz/mpy-mbedtls)
-*   [usqlite](https://github.com/spatialdude/usqlite)
-
-### Server
-
-*   [Python](https://www.python.org/)
-*   [pyserial](https://pyserial.readthedocs.io/en/latest/)
-*   [cryptography](https://cryptography.io/en/latest/)
-*   [python-gnupg](https://pypi.org/project/python-gnupg/)
-*   [FastAPI](https://fastapi.tiangolo.com/)
-*   [OpenTelemetry](https://opentelemetry.io/)
+---
 
 ## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+MIT
