@@ -1,0 +1,1338 @@
+<!DOCTYPE html><html lang="en"><head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Sovereign Guard - Secure Server Monitoring</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <style>
+        :root {
+            --primary-blue: #0066cc;
+            --accent-green: #00aa44;
+            --dark-bg: #0d1117;
+            --surface-dark: #161b22;
+            --surface-darker: #0f1419;
+            --success-green: #28a745;
+            --warning-orange: #fd7e14;
+            --error-red: #dc3545;
+            --accent-purple: #6f42c1;
+            --text-primary: #f0f6fc;
+            --text-secondary: #7d8590;
+            --border-subtle: #21262d;
+        }
+        
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-grotesk { font-family: 'Space Grotesk', sans-serif; }
+        
+        body { 
+            font-family: 'Space Grotesk', sans-serif; 
+            background: var(--dark-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+        
+        .hero-overlay {
+            background: linear-gradient(135deg, rgba(13, 17, 23, 0.95) 0%, rgba(15, 20, 25, 0.9) 100%),
+                        radial-gradient(circle at 20% 80%, rgba(0, 102, 204, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(0, 170, 68, 0.1) 0%, transparent 50%);
+        }
+        
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.03;
+            background-image: 
+                linear-gradient(90deg, var(--accent-green) 1px, transparent 1px),
+                linear-gradient(180deg, var(--accent-green) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        .primary-glow {
+            color: var(--primary-blue);
+            text-shadow: 0 0 15px rgba(0, 102, 204, 0.4);
+        }
+        
+        .accent-text {
+            color: var(--accent-green);
+            text-shadow: 0 0 8px rgba(0, 170, 68, 0.6);
+        }
+        
+        .terminal-window {
+            background: var(--surface-darker);
+            border: 1px solid var(--accent-green);
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0, 170, 68, 0.15);
+        }
+        
+        .toc-fixed {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            background: var(--surface-dark);
+            border-right: 2px solid var(--accent-green);
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 2rem 1.5rem;
+            box-shadow: 5px 0 15px rgba(0, 170, 68, 0.1);
+        }
+        
+        .main-content {
+            margin-left: 280px;
+            min-height: 100vh;
+        }
+        
+        .section-anchor {
+            scroll-margin-top: 2rem;
+        }
+        
+        .bento-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .bento-item {
+            background: var(--surface-dark);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 170, 68, 0.1);
+            border: 1px solid var(--accent-green);
+            transition: all 0.3s ease;
+        }
+        
+        .bento-item:hover {
+            border-color: var(--primary-blue);
+            box-shadow: 0 8px 25px rgba(0, 102, 204, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .citation {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-weight: 500;
+            border-bottom: 1px dotted var(--primary-blue);
+        }
+        
+        .citation:hover {
+            background: rgba(0, 102, 204, 0.1);
+            color: var(--accent-green);
+        }
+        
+        .phase-card {
+            background: linear-gradient(135deg, var(--surface-dark) 0%, var(--surface-darker) 100%);
+            border-left: 4px solid var(--accent-green);
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-radius: 0 8px 8px 0;
+            border: 1px solid var(--border-subtle);
+            box-shadow: 0 4px 12px rgba(0, 170, 68, 0.1);
+        }
+        
+        .architecture-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .component-card {
+            background: var(--surface-dark);
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+        
+        .component-card:hover {
+            border-color: var(--primary-blue);
+            box-shadow: 0 8px 20px rgba(0, 102, 204, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        @media (max-width: 1024px) {
+            .toc-fixed {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .toc-fixed.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .bento-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .architecture-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .hero-overlay .text-5xl {
+                font-size: 2.25rem;
+                line-height: 2.5rem;
+            }
+            
+            .hero-overlay .text-xl {
+                font-size: 1rem;
+                line-height: 1.5rem;
+            }
+            
+            .container {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+        }
+        
+        /* Animations */
+        @keyframes matrix-glow {
+            0%, 100% { opacity: 0.03; }
+            50% { opacity: 0.05; }
+        }
+        
+        @keyframes primary-pulse {
+            0%, 100% { 
+                text-shadow: 0 0 15px rgba(0, 102, 204, 0.4);
+                transform: scale(1);
+            }
+            50% { 
+                text-shadow: 0 0 25px rgba(0, 102, 204, 0.7);
+                transform: scale(1.03);
+            }
+        }
+        
+        .primary-glow {
+            animation: primary-pulse 3s ease-in-out infinite;
+        }
+        
+        .matrix-bg {
+            animation: matrix-glow 6s ease-in-out infinite;
+        }
+        
+        /* Hover effects */
+        .terminal-window:hover {
+            box-shadow: 0 0 25px rgba(0, 170, 68, 0.25);
+        }
+        
+        /* Scrollbar styling for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-green);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-blue);
+        }
+    </style>
+  </head>
+
+  <body class="relative">
+    <div class="matrix-bg"></div>
+    <!-- Mobile Menu Toggle Button -->
+    <button id="mobile-menu-toggle" class="fixed top-4 left-4 z-50 p-2 rounded-lg bg-gradient-to-r from-gray-900 to-black border border-green-600 text-green-400 shadow-xl lg:hidden hover:shadow-green-400/50 transition-all">
+      <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Navigation Terminal -->
+    <nav id="toc" class="toc-fixed">
+      <div class="mb-8">
+        <div class="flex items-center mb-6">
+          <i class="fas fa-shield-alt text-2xl primary-glow mr-3"></i>
+          <h3 class="font-mono text-lg font-bold accent-text">SOVEREIGN GUARD</h3>
+        </div>
+        <div class="terminal-window p-4 mb-6">
+          <div class="flex items-center mb-2">
+            <span class="w-3 h-3 bg-red-500 rounded-full mr-2"></span>
+            <span class="w-3 h-3 bg-yellow-500 rounded-full mr-2"></span>
+            <span class="w-3 h-3 bg-green-500 rounded-full"></span>
+          </div>
+          <div class="font-mono text-xs accent-text">
+            <div>admin@server:~$ sovereign-guard --status</div>
+            <div class="text-green-400">WATCHDOG ACTIVE</div>
+            <div class="text-blue-400">MONITORING SERVER HEALTH...</div>
+          </div>
+        </div>
+        <ul class="space-y-2 text-sm font-mono">
+          <li>
+            <a href="#overview" class="block py-2 px-3 rounded hover:bg-green-400/10 text-gray-300 hover:text-green-400 transition-all">
+              <i class="fas fa-info-circle mr-2"></i>Product Overview
+            </a>
+          </li>
+          <li>
+            <a href="#how-it-works" class="block py-2 px-3 rounded hover:bg-green-400/10 text-gray-300 hover:text-green-400 transition-all">
+              <i class="fas fa-cogs mr-2"></i>How It Works
+            </a>
+          </li>
+          <li>
+            <a href="#trustless-architecture" class="block py-2 px-3 rounded hover:bg-green-400/10 text-gray-300 hover:text-green-400 transition-all">
+              <i class="fas fa-network-wired mr-2"></i>System Architecture
+            </a>
+          </li>
+          <li>
+            <a href="#key-management" class="block py-2 px-3 rounded hover:bg-green-400/10 text-gray-300 hover:text-green-400 transition-all">
+              <i class="fas fa-key mr-2"></i>Key Management
+            </a>
+          </li>
+          <li>
+            <a href="#deployment" class="block py-2 px-3 rounded hover:bg-green-400/10 text-gray-300 hover:text-green-400 transition-all">
+              <i class="fas fa-rocket mr-2"></i>Deployment Guide
+            </a>
+          </li>
+          <li>
+            <a href="#security-model" class="block py-2 px-3 rounded hover:bg-green-400/10 text-gray-300 hover:text-green-400 transition-all">
+              <i class="fas fa-lock mr-2"></i>Security Model
+            </a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Hero Section -->
+      <section class="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <div class="hero-overlay absolute inset-0"></div>
+        
+        <!-- Animated background elements -->
+        <div class="absolute inset-0 opacity-20">
+          <div class="absolute top-1/4 left-1/4 w-2 h-2 bg-green-400 animate-pulse"></div>
+          <div class="absolute top-3/4 right-1/4 w-1 h-1 bg-orange-400 animate-ping"></div>
+          <div class="absolute top-1/2 left-3/4 w-1 h-1 bg-green-400 animate-pulse"></div>
+        </div>
+        
+        <div class="relative z-10 max-w-7xl mx-auto px-6 text-center">
+          <!-- Product Statement -->
+          <div class="mb-8">
+            <div class="inline-block font-mono text-sm accent-text mb-4 border border-green-400/30 px-4 py-2 rounded-lg bg-green-400/5">
+              <i class="fas fa-server mr-2"></i>
+              Secure, autonomous server monitoring with cryptographic authentication
+            </div>
+          </div>
+
+          <div class="bento-grid mb-12">
+            <div class="bento-item backdrop-blur-sm">
+              <div class="flex items-center mb-3">
+                <i class="fas fa-microchip text-2xl primary-glow mr-3"></i>
+                <h3 class="font-grotesk text-lg font-bold text-white">HARDWARE WATCHDOG</h3>
+              </div>
+              <p class="text-sm text-gray-300 font-mono">ESP32-based monitoring device with secure USB communication</p>
+            </div>
+
+            <div class="bento-item backdrop-blur-sm">
+              <div class="flex items-center mb-3">
+                <i class="fas fa-shield-alt text-2xl accent-text mr-3"></i>
+                <h3 class="font-grotesk text-lg font-bold text-white">CRYPTOGRAPHIC SECURITY</h3>
+              </div>
+              <p class="text-sm text-gray-300 font-mono">Ed25519 signatures with PGP key management</p>
+            </div>
+          </div>
+
+          <h1 class="font-grotesk text-6xl md:text-8xl font-bold mb-6 leading-tight">
+            <span class="accent-text">SOVEREIGN</span><br>
+            <span class="primary-glow">GUARD</span>
+          </h1>
+          
+          <div class="text-xl md:text-3xl mb-8 text-gray-300 max-w-4xl mx-auto font-mono leading-relaxed">
+            <span class="accent-text">SECURE SERVER</span> <span class="text-white">MONITORING</span><br>
+            <span class="text-gray-400 text-lg">Hardware-based watchdog with cryptographic authentication</span>
+          </div>
+
+          <!-- Call to Action -->
+          <div class="mb-12">
+            <a href="https://github.com/silverfisk/sovereign-guard" target="_blank" rel="noopener noreferrer" class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold px-8 py-4 rounded-lg text-xl transition-all transform hover:scale-105 shadow-lg hover:shadow-blue-500/50 inline-block">
+              <i class="fas fa-download mr-2"></i>
+              DEPLOY SOVEREIGN GUARD
+            </a>
+          </div>
+
+          <div class="flex flex-wrap justify-center gap-4 mt-8">
+            <div class="terminal-window px-4 py-2 font-mono text-sm">
+              <span class="accent-text">[✓]</span> <span class="text-white">Hardware Watchdog</span>
+            </div>
+            <div class="terminal-window px-4 py-2 font-mono text-sm">
+              <span class="accent-text">[✓]</span> <span class="text-white">USB Communication</span>
+            </div>
+            <div class="terminal-window px-4 py-2 font-mono text-sm">
+              <span class="accent-text">[✓]</span> <span class="text-white">Cryptographic Auth</span>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+
+      <!-- Product Overview -->
+      <section id="overview" class="section-anchor py-20" style="background: var(--surface-dark);">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="text-center mb-16">
+            <h2 class="font-grotesk text-4xl font-bold mb-4 accent-text">SECURE SERVER MONITORING</h2>
+            <p class="text-xl text-gray-300 font-mono">A hardware-based watchdog with cryptographic authentication.</p>
+          </div>
+
+          <!-- The Problem -->
+          <div class="mb-16">
+            <div class="terminal-window p-8">
+              <div class="flex items-center mb-6">
+                <span class="text-red-400 text-2xl mr-4">⚠</span>
+                <h3 class="font-grotesk text-2xl font-bold text-red-400">THE SERVER MONITORING PROBLEM</h3>
+              </div>
+              <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                  <h4 class="font-mono text-lg text-red-300 mb-4">Traditional Monitoring Weaknesses:</h4>
+                  <ul class="space-y-3 font-mono text-gray-300">
+                    <li class="flex items-start"><span class="text-red-400 mr-3">✗</span>Network-dependent monitoring is vulnerable.</li>
+                    <li class="flex items-start"><span class="text-red-400 mr-3">✗</span>A single point of failure for your entire stack.</li>
+                    <li class="flex items-start"><span class="text-red-400 mr-3">✗</span>Susceptible to network attacks (DDoS, MITM).</li>
+                    <li class="flex items-start"><span class="text-red-400 mr-3">✗</span>Limited physical access control.</li>
+                    <li class="flex items-start"><span class="text-red-400 mr-3">✗</span>Weak authentication models.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 class="font-mono text-lg text-green-400 mb-4">The Sovereign Guard Solution:</h4>
+                  <ul class="space-y-3 font-mono text-gray-300">
+                    <li class="flex items-start"><span class="accent-text mr-3">✓</span>Secure remote access over an air-gapped link.</li>
+                    <li class="flex items-start"><span class="accent-text mr-3">✓</span>Hardware-level reliability for maximum uptime.</li>
+                    <li class="flex items-start"><span class="accent-text mr-3">✓</span>Immunity to network-based attacks.</li>
+                    <li class="flex items-start"><span class="accent-text mr-3">✓</span>Physical device control for ultimate security.</li>
+                    <li class="flex items-start"><span class="accent-text mr-3">✓</span>Strong cryptographic authentication for all operations.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Core Features -->
+          <div class="grid md:grid-cols-3 gap-8 mt-16">
+            <div class="text-center group">
+              <div class="w-20 h-20 mx-auto mb-6 rounded-full border-2 border-green-400 flex items-center justify-center group-hover:bg-green-400/10 transition-all">
+                <i class="fas fa-microchip text-2xl primary-glow"></i>
+              </div>
+              <h3 class="font-grotesk text-xl font-bold mb-4 text-white">HARDWARE WATCHDOG</h3>
+              <p class="text-gray-300 font-mono text-sm">An ESP32-based monitoring device with secure boot and flash encryption.</p>
+            </div>
+
+            <div class="text-center group">
+              <div class="w-20 h-20 mx-auto mb-6 rounded-full border-2 border-green-400 flex items-center justify-center group-hover:bg-green-400/10 transition-all">
+                <i class="fab fa-usb text-2xl accent-text"></i>
+              </div>
+              <h3 class="font-grotesk text-xl font-bold mb-4 text-white">USB COMMUNICATION</h3>
+              <p class="text-gray-300 font-mono text-sm">A direct USB connection eliminates network attack vectors.</p>
+            </div>
+
+            <div class="text-center group">
+              <div class="w-20 h-20 mx-auto mb-6 rounded-full border-2 border-green-400 flex items-center justify-center group-hover:bg-green-400/10 transition-all">
+                <i class="fas fa-key text-2xl accent-text"></i>
+              </div>
+              <h3 class="font-grotesk text-xl font-bold mb-4 text-white">CRYPTOGRAPHIC AUTHENTICATION</h3>
+              <p class="text-gray-300 font-mono text-sm">Ed25519 signatures with PGP key management for secure operations.</p>
+            </div>
+          </div>
+          
+        </div>
+      </section>
+
+      <!-- How It Works -->
+      <section id="how-it-works" class="section-anchor py-20" style="background: var(--dark-bg);">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="text-center mb-16">
+            <h2 class="font-grotesk text-4xl font-bold mb-4 accent-text">HOW IT WORKS</h2>
+            <p class="text-xl text-gray-300 font-mono">Hardware Watchdog + Server Daemon + Cryptographic Authentication</p>
+          </div>
+          
+          <!-- System Components -->
+          <div class="grid lg:grid-cols-3 gap-8 mb-16">
+            <div class="terminal-window p-6 text-center">
+              <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-600/20 flex items-center justify-center">
+                <i class="fas fa-microchip text-2xl text-blue-400"></i>
+              </div>
+              <h3 class="font-grotesk text-xl font-bold mb-4 text-white">ESP32 WATCHDOG</h3>
+              <ul class="text-sm text-gray-300 font-mono space-y-2 text-left">
+                <li>• Hardware-based monitoring</li>
+                <li>• Ed25519 cryptography</li>
+                <li>• Power control relays</li>
+                <li>• Local metrics storage</li>
+                <li>• Tamper-resistant keys</li>
+              </ul>
+            </div>
+            
+            <div class="terminal-window p-6 text-center">
+              <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-green-600/20 flex items-center justify-center">
+                <i class="fab fa-usb text-2xl text-green-400"></i>
+              </div>
+              <h3 class="font-grotesk text-xl font-bold mb-4 text-white">USB COMMUNICATION</h3>
+              <ul class="text-sm text-gray-300 font-mono space-y-2 text-left">
+                <li>• Direct air-gapped connection</li>
+                <li>• JSON message protocol</li>
+                <li>• No network dependencies</li>
+                <li>• Immune to remote attacks</li>
+                <li>• Direct hardware control</li>
+              </ul>
+            </div>
+            
+            <div class="terminal-window p-6 text-center">
+              <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-600/20 flex items-center justify-center">
+                <i class="fas fa-server text-2xl text-purple-400"></i>
+              </div>
+              <h3 class="font-grotesk text-xl font-bold mb-4 text-white">SERVER DAEMON</h3>
+              <ul class="text-sm text-gray-300 font-mono space-y-2 text-left">
+                <li>• Python-based service</li>
+                <li>• PGP signature verification</li>
+                <li>• System health monitoring</li>
+                <li>• Command execution</li>
+                <li>• Web management interface</li>
+              </ul>
+            </div>
+          </div>
+          
+          <!-- Workflow Diagram -->
+          <div class="terminal-window p-8">
+            <h3 class="font-grotesk text-2xl font-bold mb-6 accent-text text-center">TYPICAL WORKFLOW</h3>
+            <div class="space-y-6">
+              <div class="flex items-center font-mono text-sm">
+                <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4">1</div>
+                <div class="flex-1">
+                  <span class="text-green-400">Server Health Check:</span>
+                  <span class="text-gray-300"> The daemon monitors CPU, memory, disk, and network connectivity.</span>
+                </div>
+              </div>
+              
+              <div class="flex items-center font-mono text-sm">
+                <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4">2</div>
+                <div class="flex-1">
+                  <span class="text-green-400">Status Report:</span>
+                  <span class="text-gray-300"> The daemon sends an encrypted status to the watchdog via USB.</span>
+                </div>
+              </div>
+              
+              <div class="flex items-center font-mono text-sm">
+                <div class="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4">3</div>
+                <div class="flex-1">
+                  <span class="text-orange-400">Health Issue Detected:</span>
+                  <span class="text-gray-300"> The server becomes unresponsive or metrics exceed thresholds.</span>
+                </div>
+              </div>
+              
+              <div class="flex items-center font-mono text-sm">
+                <div class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4">4</div>
+                <div class="flex-1">
+                  <span class="text-red-400">Automated Response:</span>
+                  <span class="text-gray-300"> The watchdog executes pre-signed recovery commands (e.g., reboot, service restart).</span>
+                </div>
+              </div>
+              
+              <div class="flex items-center font-mono text-sm">
+                <div class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4">5</div>
+                <div class="flex-1">
+                  <span class="text-green-400">Recovery Complete:</span>
+                  <span class="text-gray-300"> The server is restored to a healthy state, and the incident is logged.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Trustless Architecture -->
+      <section id="trustless-architecture" class="section-anchor py-20" style="background: var(--dark-bg);">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="text-center mb-16">
+            <h2 class="font-grotesk text-4xl font-bold mb-4 accent-text">TRUSTLESS ARCHITECTURE</h2>
+            <p class="text-xl text-gray-300 font-mono">Decentralized by design. Sovereign by choice.</p>
+          </div>
+
+          <div class="architecture-grid">
+            <!-- ESP32 Components -->
+            <div>
+              <h3 class="font-grotesk text-2xl font-bold mb-6 primary-glow">
+                <i class="fas fa-microchip mr-3"></i>SOVEREIGN GUARDIAN MODULE
+              </h3>
+              <p class="text-gray-400 font-mono mb-6">Your personal hardware security module.</p>
+
+              <div class="space-y-4">
+                <div class="component-card hover:border-green-400">
+                  <h4 class="font-mono text-lg font-bold text-white mb-3">
+                    <i class="fas fa-key accent-text mr-2"></i>crypto_sovereign.py
+                  </h4>
+                  <p class="text-sm text-gray-300 mb-3 font-mono">Military-grade Ed25519 cryptography. Your keys never leave your hardware.</p>
+                  <div class="flex items-center text-xs accent-text bg-green-400/10 px-2 py-1 rounded">
+                    <i class="fas fa-shield-alt mr-2"></i>CRYPTOGRAPHIC SOVEREIGNTY
+                  </div>
+                </div>
+
+                <div class="component-card hover:border-green-400">
+                  <h4 class="font-mono text-lg font-bold text-white mb-3">
+                    <i class="fas fa-bolt accent-text mr-2"></i>airgap_comm.py
+                  </h4>
+                  <p class="text-sm text-gray-300 mb-3 font-mono">Secure, air-gapped USB communication channel, enabling remote access without direct network exposure of the watchdog.</p>
+                  <div class="flex items-center text-xs accent-text bg-green-400/10 px-2 py-1 rounded">
+                    <i class="fas fa-unlink mr-2"></i>NETWORK ISOLATION
+                  </div>
+                </div>
+
+                <div class="component-card hover:border-green-400">
+                  <h4 class="font-mono text-lg font-bold text-white mb-3">
+                    <i class="fas fa-shield-virus accent-text mr-2"></i>guardian.py
+                  </h4>
+                  <p class="text-sm text-gray-300 mb-3 font-mono">Autonomous server protection. Your digital bodyguard that never sleeps.</p>
+                  <div class="flex items-center text-xs accent-text bg-green-400/10 px-2 py-1 rounded">
+                    <i class="fas fa-robot mr-2"></i>AUTONOMOUS PROTECTION
+                  </div>
+                </div>
+
+                <div class="component-card hover:border-green-400">
+                  <h4 class="font-mono text-lg font-bold text-white mb-3">
+                    <i class="fas fa-database accent-text mr-2"></i>private_metrics.py
+                  </h4>
+                  <p class="text-sm text-gray-300 mb-3 font-mono">Your data stays yours. Local storage, zero telemetry, complete privacy.</p>
+                  <div class="flex items-center text-xs accent-text bg-green-400/10 px-2 py-1 rounded">
+                    <i class="fas fa-user-secret mr-2"></i>PRIVACY FIRST
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Server Components -->
+            <div>
+              <h3 class="font-grotesk text-2xl font-bold mb-6 primary-glow">
+                <i class="fas fa-server mr-3"></i>SOVEREIGN SERVER STACK
+              </h3>
+              <p class="text-gray-400 font-mono mb-6">Your self-hosted fortress of solitude.</p>
+
+              <div class="space-y-4">
+                <div class="component-card hover:border-orange-400">
+                  <h4 class="font-mono text-lg font-bold text-white mb-3">
+                    <i class="fas fa-check-circle primary-glow mr-2"></i>trust_verifier.py
+                  </h4>
+                  <p class="text-sm text-gray-300 mb-3 font-mono">Zero-trust device authentication. Every connection is verified cryptographically.</p>
+                  <div class="flex items-center text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">
+                    <i class="fas fa-fingerprint mr-2"></i>TRUST VERIFICATION
+                  </div>
+                </div>
+
+                <div class="component-card hover:border-orange-400">
+                  <h4 class="font-mono text-lg font-bold text-white mb-3">
+                    <i class="fas fa-chart-bar primary-glow mr-2"></i>sovereign_metrics.py
+                  </h4>
+                  <p class="text-sm text-gray-300 mb-3 font-mono">Self-sovereign monitoring. Your metrics, your insights, your control.</p>
+                  <div class="flex items-center text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">
+                    <i class="fas fa-chart-line mr-2"></i>PRIVATE ANALYTICS
+                  </div>
+                </div>
+
+                <div class="component-card hover:border-orange-400">
+                  <h4 class="font-mono text-lg font-bold text-white mb-3">
+                    <i class="fas fa-terminal primary-glow mr-2"></i>command_sovereign.py
+                  </h4>
+                  <p class="text-sm text-gray-300 mb-3 font-mono">Multi-signature command execution. Maximum security, maximum sovereignty.</p>
+                  <div class="flex items-center text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">
+                    <i class="fas fa-key mr-2"></i>MULTISIG CONTROL
+                  </div>
+                </div>
+
+                <div class="component-card hover:border-orange-400">
+                  <h4 class="font-mono text-lg font-bold text-white mb-3">
+                    <i class="fas fa-tachometer-alt primary-glow mr-2"></i>sovereign_dashboard.py
+                  </h4>
+                  <p class="text-sm text-gray-300 mb-3 font-mono">Your personal command center. Self-hosted, encrypted, and untraceable.</p>
+                  <div class="flex items-center text-xs text-orange-400 bg-orange-400/10 px-2 py-1 rounded">
+                    <i class="fas fa-crown mr-2"></i>SOVEREIGN INTERFACE
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Key Management -->
+      <section id="key-management" class="section-anchor py-20" style="background: var(--surface-dark);">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="text-center mb-16">
+            <h2 class="font-grotesk text-4xl font-bold mb-4 accent-text">KEY MANAGEMENT & AUTHENTICATION</h2>
+            <p class="text-xl text-gray-300 font-mono">Multi-layer cryptographic security with PGP and Ed25519.</p>
+          </div>
+
+          <!-- Key Types and Roles -->
+          <div class="grid lg:grid-cols-3 gap-8 mb-12">
+            <div class="terminal-window p-6">
+              <h3 class="font-grotesk text-xl font-bold mb-4 accent-text">
+                <i class="fas fa-microchip mr-2"></i>WATCHDOG KEYS
+              </h3>
+              <ul class="space-y-3 text-sm text-gray-300 font-mono">
+                <li><span class="accent-text mr-2">•</span>Ed25519 device identity key</li>
+                <li><span class="accent-text mr-2">•</span>Hardware-protected storage</li>
+                <li><span class="accent-text mr-2">•</span>Signs status reports</li>
+                <li><span class="accent-text mr-2">•</span>Validates received commands</li>
+                <li><span class="accent-text mr-2">•</span>Cannot be extracted from the device</li>
+              </ul>
+            </div>
+
+            <div class="terminal-window p-6">
+              <h3 class="font-grotesk text-xl font-bold mb-4 primary-glow">
+                <i class="fas fa-user-shield mr-2"></i>ADMIN PGP KEYS
+              </h3>
+              <ul class="space-y-3 text-sm text-gray-300 font-mono">
+                <li><span class="text-blue-400 mr-2">•</span>Administrator identity keys</li>
+                <li><span class="text-blue-400 mr-2">•</span>Sign command packages</li>
+                <li><span class="text-blue-400 mr-2">•</span>Authorize configuration changes</li>
+                <li><span class="text-blue-400 mr-2">•</span>Can be revoked/rotated</li>
+                <li><span class="text-blue-400 mr-2">•</span>Hierarchical permissions</li>
+              </ul>
+            </div>
+            
+            <div class="terminal-window p-6">
+              <h3 class="font-grotesk text-xl font-bold mb-4 text-purple-400">
+                <i class="fas fa-file-signature mr-2"></i>PRE-SIGNED PACKAGES
+              </h3>
+              <ul class="space-y-3 text-sm text-gray-300 font-mono">
+                <li><span class="text-purple-400 mr-2">•</span>Emergency response commands</li>
+                <li><span class="text-purple-400 mr-2">•</span>Server reboot procedures</li>
+                <li><span class="text-purple-400 mr-2">•</span>Service restart scripts</li>
+                <li><span class="text-purple-400 mr-2">•</span>Maintenance operations</li>
+                <li><span class="text-purple-400 mr-2">•</span>Time-limited validity</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Enrollment Process -->
+          <div class="terminal-window p-8 mb-12">
+            <div class="flex items-center mb-6">
+              <i class="fas fa-handshake text-3xl primary-glow mr-4"></i>
+              <h3 class="font-grotesk text-2xl font-bold primary-glow">ENROLLMENT PROCESS</h3>
+            </div>
+            <div class="space-y-6">
+              <div class="flex items-start font-mono text-sm">
+                <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4 mt-1">1</div>
+                <div>
+                  <span class="text-blue-400 font-bold">Initial Setup:</span>
+                  <p class="text-gray-300 mt-1">Connect the ESP32 watchdog to the server via USB. The device generates a unique Ed25519 key pair on first boot.</p>
+                </div>
+              </div>
+              
+              <div class="flex items-start font-mono text-sm">
+                <div class="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4 mt-1">2</div>
+                <div>
+                  <span class="text-green-400 font-bold">Key Exchange:</span>
+                  <p class="text-gray-300 mt-1">The server daemon reads the watchdog's public key, and the admin provides their PGP public key for enrollment.</p>
+                </div>
+              </div>
+              
+              <div class="flex items-start font-mono text-sm">
+                <div class="w-8 h-8 bg-purple-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4 mt-1">3</div>
+                <div>
+                  <span class="text-purple-400 font-bold">Trust Establishment:</span>
+                  <p class="text-gray-300 mt-1">The admin signs the watchdog's public key with their PGP key, establishing a trust relationship.</p>
+                </div>
+              </div>
+              
+              <div class="flex items-start font-mono text-sm">
+                <div class="w-8 h-8 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4 mt-1">4</div>
+                <div>
+                  <span class="text-orange-400 font-bold">Pre-Sign Commands:</span>
+                  <p class="text-gray-300 mt-1">The admin creates and signs emergency response packages that the watchdog can execute autonomously.</p>
+                </div>
+              </div>
+              
+              <div class="flex items-start font-mono text-sm">
+                <div class="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center text-xs font-bold mr-4 mt-1">5</div>
+                <div>
+                  <span class="text-red-400 font-bold">Deployment:</span>
+                  <p class="text-gray-300 mt-1">The system becomes operational. The watchdog monitors the server and can execute pre-signed recovery commands.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Pre-Signed Command Examples -->
+          <div class="terminal-window p-8">
+            <h3 class="font-grotesk text-2xl font-bold mb-6 accent-text text-center">PRE-SIGNED COMMAND EXAMPLES</h3>
+            <div class="grid md:grid-cols-2 gap-8">
+              <div>
+                <h4 class="font-mono text-lg text-green-400 mb-4">Emergency Recovery Commands:</h4>
+                <div class="bg-black/30 p-4 rounded font-mono text-sm space-y-2">
+                  <div class="text-gray-400"># Server reboot (signed by admin)</div>
+                  <div class="text-green-400">sudo systemctl reboot</div>
+                  <div class="text-gray-400"># Service restart</div>
+                  <div class="text-green-400">sudo systemctl restart nginx</div>
+                  <div class="text-gray-400"># Clear disk space</div>
+                  <div class="text-green-400">sudo /opt/cleanup-logs.sh</div>
+                </div>
+              </div>
+              
+              <div>
+                <h4 class="font-mono text-lg text-blue-400 mb-4">Validation & Execution:</h4>
+                <div class="bg-black/30 p-4 rounded font-mono text-sm space-y-2">
+                  <div class="text-gray-400"># Verify PGP signature</div>
+                  <div class="text-blue-400">gpg --verify command.sig command.sh</div>
+                  <div class="text-gray-400"># Check timestamp validity</div>
+                  <div class="text-blue-400">validate_timestamp()</div>
+                  <div class="text-gray-400"># Execute if valid</div>
+                  <div class="text-blue-400">bash command.sh</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-8 text-center">
+              <div class="inline-block bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                <p class="text-yellow-400 font-mono text-sm">
+                  <i class="fas fa-clock mr-2"></i>
+                  <strong>Time-Limited Commands:</strong> All pre-signed packages include expiration timestamps for enhanced security.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Freedom Technology -->
+      <section id="freedom-tech" class="section-anchor py-20" style="background: var(--dark-bg);">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="text-center mb-16">
+            <h2 class="font-grotesk text-4xl font-bold mb-4 accent-text">FREEDOM TECHNOLOGY STACK</h2>
+            <p class="text-xl text-gray-300 font-mono">Open-source tools for digital liberation.</p>
+          </div>
+
+          <div class="grid lg:grid-cols-2 gap-8">
+            <!-- ESP32 Libraries -->
+            <div>
+              <h3 class="font-grotesk text-2xl font-bold mb-6 accent-text flex items-center">
+                <i class="fas fa-microchip mr-3"></i>SOVEREIGN GUARDIAN TECH
+              </h3>
+
+              <div class="space-y-4">
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold text-white mb-3">
+                    <i class="fas fa-cogs accent-text mr-2"></i>Core Freedom Tools
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="accent-text mr-2">•</span><strong class="text-green-400">ujson:</strong> Lightweight, trustless data serialization.</li>
+                    <li><span class="accent-text mr-2">•</span><strong class="text-green-400">machine:</strong> Direct hardware control, no abstractions.</li>
+                    <li><span class="accent-text mr-2">•</span><strong class="text-green-400">sdcard:</strong> Local storage, zero cloud dependency.</li>
+                  </ul>
+                </div>
+
+                <div class="terminal-window p-4 border-2 border-orange-500">
+                  <h4 class="font-mono font-bold text-white mb-3">
+                    <i class="fas fa-key primary-glow mr-2"></i>Cryptographic Arsenal
+                  </h4>
+                  <p class="text-sm text-gray-300 mb-3 font-mono">
+                    <strong class="text-orange-400">mpy-mbedtls:</strong> A military-grade cryptography library.
+                  </p>
+                  <div class="text-xs primary-glow bg-orange-500/10 px-3 py-2 rounded border border-orange-500/30">
+                    <i class="fas fa-shield-alt mr-1"></i>REQUIRED FOR SOVEREIGN SECURITY
+                  </div>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold text-white mb-3">
+                    <i class="fas fa-database accent-text mr-2"></i>Data Sovereignty
+                  </h4>
+                  <p class="text-sm text-gray-300 font-mono">
+                    <strong class="text-green-400">usqlite:</strong> A local database, so your data never leaves your device.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Server Libraries -->
+            <div>
+              <h3 class="font-grotesk text-2xl font-bold mb-6 primary-glow flex items-center">
+                <i class="fas fa-server mr-3"></i>SOVEREIGN SERVER ARSENAL
+              </h3>
+
+              <div class="space-y-4">
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold text-white mb-3">
+                    <i class="fas fa-bolt accent-text mr-2"></i>Air-Gap Communication
+                  </h4>
+                  <p class="text-sm text-gray-300 font-mono">
+                    <strong class="text-green-400">pyserial:</strong> Enables direct serial communication, forming the basis of the air-gapped channel.
+                  </p>
+                </div>
+
+                <div class="terminal-window p-4 border-2 border-orange-500">
+                  <h4 class="font-mono font-bold text-white mb-3">
+                    <i class="fas fa-key primary-glow mr-2"></i>Cryptographic Freedom
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="primary-glow mr-2">•</span><strong class="text-orange-400">cryptography:</strong> State-of-the-art Ed25519 signatures.</li>
+                    <li><span class="primary-glow mr-2">•</span><strong class="text-orange-400">python-gnupg:</strong> GPG multi-signature verification.</li>
+                  </ul>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold text-white mb-3">
+                    <i class="fas fa-chart-bar accent-text mr-2"></i>Sovereign Monitoring
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="accent-text mr-2">•</span><strong class="text-green-400">opentelemetry:</strong> A privacy-first metrics framework.</li>
+                    <li><span class="accent-text mr-2">•</span><strong class="text-green-400">psutil:</strong> Direct system access, no third parties.</li>
+                    <li><span class="accent-text mr-2">•</span><strong class="text-green-400">fastapi:</strong> A self-hosted web interface.</li>
+                    <li><span class="accent-text mr-2">•</span><strong class="text-green-400">websockets:</strong> Encrypted real-time control.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Deployment Guide -->
+      <section id="deployment" class="section-anchor py-20" style="background: var(--dark-bg);">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="text-center mb-16">
+            <h2 class="font-grotesk text-4xl font-bold mb-4 accent-text">DEPLOYMENT GUIDE</h2>
+            <p class="text-xl text-gray-300 font-mono">A step-by-step implementation process.</p>
+          </div>
+
+          <div class="space-y-8">
+            <!-- Phase 1 -->
+            <div class="phase-card">
+              <div class="flex items-center mb-6">
+                <div class="w-10 h-10 bg-gradient-to-r from-green-400 to-green-600 text-black rounded-full flex items-center justify-center text-lg font-bold mr-4">1</div>
+                <h3 class="font-grotesk text-2xl font-bold text-white">HARDWARE SETUP</h3>
+              </div>
+
+              <div class="grid md:grid-cols-3 gap-4">
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold accent-text mb-3">
+                    <i class="fas fa-microchip mr-2"></i>ESP32 Configuration
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="accent-text mr-2">✓</span>Flash the Sovereign Guard firmware.</li>
+                    <li><span class="accent-text mr-2">✓</span>Generate device Ed25519 keys.</li>
+                    <li><span class="accent-text mr-2">✓</span>Configure secure boot.</li>
+                  </ul>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold accent-text mb-3">
+                    <i class="fab fa-usb mr-2"></i>USB Connection
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="accent-text mr-2">✓</span>Connect the ESP32 to a server USB port.</li>
+                    <li><span class="accent-text mr-2">✓</span>Verify CDC-ACM device detection.</li>
+                    <li><span class="accent-text mr-2">✓</span>Test basic communication.</li>
+                  </ul>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold accent-text mb-3">
+                    <i class="fas fa-cog mr-2"></i>Power Control Setup
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="accent-text mr-2">✓</span>Wire the relay to the server's power.</li>
+                    <li><span class="accent-text mr-2">✓</span>Configure GPIO pins.</li>
+                    <li><span class="accent-text mr-2">✓</span>Test power cycling capability.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Phase 2 -->
+            <div class="phase-card">
+              <div class="flex items-center mb-6">
+                <div class="w-10 h-10 bg-gradient-to-r from-blue-400 to-blue-600 text-white rounded-full flex items-center justify-center text-lg font-bold mr-4">2</div>
+                <h3 class="font-grotesk text-2xl font-bold text-white">SOFTWARE INSTALLATION</h3>
+              </div>
+
+              <div class="grid md:grid-cols-3 gap-4">
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold primary-glow mb-3">
+                    <i class="fas fa-server mr-2"></i>Server Daemon
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="text-blue-400 mr-2">✓</span>Install Python dependencies.</li>
+                    <li><span class="text-blue-400 mr-2">✓</span>Configure the system service.</li>
+                    <li><span class="text-blue-400 mr-2">✓</span>Set up monitoring thresholds.</li>
+                  </ul>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold primary-glow mb-3">
+                    <i class="fas fa-cogs mr-2"></i>Monitoring Setup
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="text-blue-400 mr-2">✓</span>Configure health checks.</li>
+                    <li><span class="text-blue-400 mr-2">✓</span>Set alert thresholds.</li>
+                    <li><span class="text-blue-400 mr-2">✓</span>Test watchdog responses.</li>
+                  </ul>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold primary-glow mb-3">
+                    <i class="fas fa-key mr-2"></i>Key Management
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="text-blue-400 mr-2">✓</span>Import admin PGP keys.</li>
+                    <li><span class="text-blue-400 mr-2">✓</span>Exchange device keys.</li>
+                    <li><span class="text-blue-400 mr-2">✓</span>Establish trust relationships.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Phase 3 -->
+            <div class="phase-card">
+              <div class="flex items-center mb-6">
+                <div class="w-10 h-10 bg-gradient-to-r from-purple-400 to-purple-600 text-white rounded-full flex items-center justify-center text-lg font-bold mr-4">3</div>
+                <h3 class="font-grotesk text-2xl font-bold text-white">COMMAND PREPARATION</h3>
+              </div>
+
+              <div class="grid md:grid-cols-2 gap-4">
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold text-purple-400 mb-3">
+                    <i class="fas fa-file-signature mr-2"></i>Pre-Sign Commands
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="text-purple-400 mr-2">✓</span>Create emergency response scripts.</li>
+                    <li><span class="text-purple-400 mr-2">✓</span>Sign with an admin PGP key.</li>
+                    <li><span class="text-purple-400 mr-2">✓</span>Set expiration timestamps.</li>
+                    <li><span class="text-purple-400 mr-2">✓</span>Upload to watchdog storage.</li>
+                  </ul>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold text-purple-400 mb-3">
+                    <i class="fas fa-desktop mr-2"></i>Web Interface
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="text-purple-400 mr-2">✓</span>Deploy the management dashboard.</li>
+                    <li><span class="text-purple-400 mr-2">✓</span>Configure access controls.</li>
+                    <li><span class="text-purple-400 mr-2">✓</span>Test remote monitoring.</li>
+                    <li><span class="text-purple-400 mr-2">✓</span>Set up alerting.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Phase 4 -->
+            <div class="phase-card">
+              <div class="flex items-center mb-6">
+                <div class="w-10 h-10 bg-gradient-to-r from-green-400 to-green-600 text-black rounded-full flex items-center justify-center text-lg font-bold mr-4">4</div>
+                <h3 class="font-grotesk text-2xl font-bold text-white">TESTING & VALIDATION</h3>
+              </div>
+
+              <div class="grid md:grid-cols-3 gap-4">
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold text-green-400 mb-3">
+                    <i class="fas fa-vial mr-2"></i>System Testing
+                  </h4>
+                  <p class="text-sm text-gray-300 font-mono">Verify that all components work together correctly.</p>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold text-green-400 mb-3">
+                    <i class="fas fa-shield-alt mr-2"></i>Security Validation
+                  </h4>
+                  <p class="text-sm text-gray-300 font-mono">Perform penetration testing and a security audit.</p>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <h4 class="font-mono font-bold text-green-400 mb-3">
+                    <i class="fas fa-rocket mr-2"></i>Production Deployment
+                  </h4>
+                  <ul class="text-sm text-gray-300 space-y-2 font-mono">
+                    <li><span class="text-green-400 mr-2">✓</span>Enable automatic monitoring.</li>
+                    <li><span class="text-green-400 mr-2">✓</span>Configure alerting channels.</li>
+                    <li><span class="text-green-400 mr-2">✓</span>Document operational procedures.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Security Model -->
+      <section id="security-model" class="section-anchor py-20" style="background: var(--surface-dark);">
+        <div class="max-w-6xl mx-auto px-6">
+          <div class="text-center mb-16">
+            <h2 class="font-grotesk text-4xl font-bold mb-4 accent-text">SECURITY MODEL</h2>
+            <p class="text-xl text-gray-300 font-mono">Multi-layered authentication and access control.</p>
+          </div>
+
+          <div class="grid lg:grid-cols-2 gap-8 mb-12">
+            <div>
+              <h3 class="font-grotesk text-2xl font-bold mb-6 accent-text">ACCESS CONTROL LEVELS</h3>
+
+              <div class="space-y-4">
+                <div class="terminal-window p-4">
+                  <div class="flex items-center mb-3">
+                    <div class="w-8 h-8 bg-green-400 text-black rounded-full flex items-center justify-center text-sm font-bold mr-3">1</div>
+                    <h4 class="font-mono font-bold accent-text">DEVICE LEVEL</h4>
+                  </div>
+                  <p class="text-sm text-gray-300 mb-2 font-mono">Ed25519 hardware key authentication.</p>
+                  <div class="text-xs accent-text bg-green-400/10 px-2 py-1 rounded border border-green-400/30">
+                    Access: System metrics, health status, pre-signed emergency commands.
+                  </div>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <div class="flex items-center mb-3">
+                    <div class="w-8 h-8 bg-blue-400 text-black rounded-full flex items-center justify-center text-sm font-bold mr-3">2</div>
+                    <h4 class="font-mono font-bold primary-glow">ADMIN LEVEL</h4>
+                  </div>
+                  <p class="text-sm text-gray-300 mb-2 font-mono">Device authentication + Valid PGP signature.</p>
+                  <div class="text-xs text-blue-400 bg-blue-400/10 px-2 py-1 rounded border border-blue-400/30">
+                    Access: Manual operations, configuration changes, command signing.
+                  </div>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <div class="flex items-center mb-3">
+                    <div class="w-8 h-8 bg-purple-400 text-black rounded-full flex items-center justify-center text-sm font-bold mr-3">3</div>
+                    <h4 class="font-mono font-bold text-purple-400">SUPERUSER LEVEL</h4>
+                  </div>
+                  <p class="text-sm text-gray-300 mb-2 font-mono">Admin level + Additional PGP signature + session authentication.</p>
+                  <div class="text-xs text-purple-400 bg-purple-400/10 px-2 py-1 rounded border border-purple-400/30">
+                    Access: Full system control, debug access, audit logs, key management.
+                  </div>
+                </div>
+
+                <div class="terminal-window p-4">
+                  <div class="flex items-center mb-3">
+                    <div class="w-8 h-8 bg-green-500 text-black rounded-full flex items-center justify-center text-sm font-bold mr-3">4</div>
+                    <h4 class="font-mono font-bold text-green-400">AUTONOMOUS LEVEL</h4>
+                  </div>
+                  <p class="text-sm text-gray-300 mb-2 font-mono">Device authentication + Time-limited pre-signed commands.</p>
+                  <div class="text-xs text-green-400 bg-green-400/10 px-2 py-1 rounded border border-green-400/30">
+                    Access: Automated emergency responses, scheduled maintenance tasks.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="font-grotesk text-2xl font-bold mb-6 primary-glow">SECURITY PRINCIPLES</h3>
+
+              <div class="space-y-4">
+                <div class="terminal-window p-4 border-2 border-green-400">
+                  <h4 class="font-mono font-bold accent-text mb-3">
+                    <i class="fas fa-unlink mr-2"></i>AIR-GAPPED CHANNEL
+                  </h4>
+                  <p class="text-sm text-gray-300 font-mono">
+                    The watchdog communicates with the server via a direct USB link, isolating it from network-based attacks. This secure channel can be used for remote access with minimal exposure.
+                  </p>
+                </div>
+
+                <div class="terminal-window p-4 border-2 border-blue-400">
+                  <h4 class="font-mono font-bold primary-glow mb-3">
+                    <i class="fas fa-key mr-2"></i>KEY PROTECTION
+                  </h4>
+                  <p class="text-sm text-gray-300 font-mono">
+                    Hardware-protected key storage with secure boot. Private keys never leave the device. Supports key rotation and revocation.
+                  </p>
+                </div>
+
+                <div class="terminal-window p-4 border-2 border-purple-400">
+                  <h4 class="font-mono font-bold text-purple-400 mb-3">
+                    <i class="fas fa-microchip mr-2"></i>SILICON-LEVEL PROTECTION
+                  </h4>
+                  <p class="text-sm text-gray-300 font-mono">
+                    ESP32 Secure Boot & Flash Encryption create a hardware root of trust. Even physical access can't compromise your sovereignty.
+                  </p>
+                </div>
+
+                <div class="terminal-window p-4 border-2 border-red-400">
+                  <h4 class="font-mono font-bold text-red-400 mb-3">
+                    <i class="fas fa-scroll mr-2"></i>IMMUTABLE TRUTH
+                  </h4>
+                  <p class="text-sm text-gray-300 font-mono">
+                    Cryptographically signed audit trails. Every action is recorded, verified, and tamper-proof. Truth through mathematics.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Call to Action -->
+      <section class="py-20" style="background: var(--dark-bg);">
+        <div class="max-w-6xl mx-auto px-6 text-center">
+          <div class="mb-16">
+            <h2 class="font-grotesk text-4xl font-bold mb-8 accent-text">GET STARTED</h2>
+            <p class="text-xl text-gray-300 font-mono mb-12 max-w-4xl mx-auto">
+              Secure server monitoring shouldn't depend on network connectivity or third-party services.<br>
+              Take control of your infrastructure with hardware-based monitoring.<br>
+              <span class="primary-glow font-bold">Deploy Sovereign Guard today.</span>
+            </p>
+          </div>
+          
+          <div class="grid md:grid-cols-3 gap-8 mb-16">
+            <div class="terminal-window p-8 text-center">
+              <div class="text-4xl accent-text mb-4"><i class="fab fa-github"></i></div>
+              <h3 class="font-mono text-xl font-bold text-white mb-4">DOWNLOAD & DEPLOY</h3>
+              <p class="text-gray-300 font-mono text-sm mb-6">An open-source hardware watchdog solution.</p>
+              <a href="https://github.com/silverfisk/sovereign-guard" target="_blank" rel="noopener noreferrer" class="bg-gradient-to-r from-green-400 to-green-600 text-black font-bold px-6 py-3 rounded font-mono hover:from-green-300 hover:to-green-500 transition-all inline-block">
+                <i class="fab fa-github mr-2"></i>VIEW ON GITHUB
+              </a>
+            </div>
+            
+            <div class="terminal-window p-8 text-center">
+              <div class="text-4xl primary-glow mb-4"><i class="fas fa-book"></i></div>
+              <h3 class="font-mono text-xl font-bold text-white mb-4">DOCUMENTATION</h3>
+              <p class="text-gray-300 font-mono text-sm mb-6">Complete setup and deployment guides.</p>
+              <button class="bg-gradient-to-r from-blue-400 to-blue-600 text-white font-bold px-6 py-3 rounded font-mono hover:from-blue-300 hover:to-blue-500 transition-all">
+                <i class="fas fa-book mr-2"></i>READ DOCS
+              </button>
+            </div>
+            
+            <div class="terminal-window p-8 text-center">
+              <div class="text-4xl text-purple-400 mb-4"><i class="fas fa-users"></i></div>
+              <h3 class="font-mono text-xl font-bold text-white mb-4">COMMUNITY SUPPORT</h3>
+              <p class="text-gray-300 font-mono text-sm mb-6">Get help from the developer community.</p>
+              <button class="bg-gradient-to-r from-purple-400 to-purple-600 text-white font-bold px-6 py-3 rounded font-mono hover:from-purple-300 hover:to-purple-500 transition-all">
+                <i class="fas fa-comments mr-2"></i>JOIN COMMUNITY
+              </button>
+            </div>
+          </div>
+          
+          <!-- Professional statement -->
+          <div class="max-w-4xl mx-auto">
+            <div class="text-gray-300 font-mono text-lg border border-green-400/30 p-8 rounded-lg bg-green-400/5 text-center">
+              <p class="mb-4">"The best security comes from understanding and controlling your own infrastructure."</p>
+              <p class="accent-text font-bold">Sovereign Guard: Hardware-based server monitoring for the security-conscious administrator.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- References -->
+      <section class="py-16 border-t" style="background: var(--dark-bg); border-color: var(--border-subtle);">
+        <div class="max-w-4xl mx-auto px-6">
+          <h2 class="font-grotesk text-2xl font-bold mb-8 accent-text">FREEDOM TECHNOLOGY REFERENCES</h2>
+          <div class="grid md:grid-cols-2 gap-4 text-sm font-mono">
+            <div id="ref-1" class="border-l-2 border-blue-500 pl-3">
+              <strong>[1]</strong> ESP-IDF USB Device Documentation
+              <a href="https://docs.espressif.com/projects/esp-idf/en/v4.4/esp32s3/api-reference/peripherals/usb_device.html" class="citation" target="_blank" rel="noopener noreferrer">ESP32 USB Device API Reference</a>
+            </div>
+            <div id="ref-6" class="border-l-2 border-blue-500 pl-3">
+              <strong>[6]</strong> ESP-IDF USB CDC-ACM Configuration
+              <a href="https://docs.espressif.com/projects/esp-idf/en/v4.4/esp32s3/api-reference/peripherals/usb_device.html" class="citation" target="_blank" rel="noopener noreferrer">USB Device Programming Guide</a>
+            </div>
+            <div id="ref-36" class="border-l-2 border-green-500 pl-3">
+              <strong>[36]</strong> Python sqlite3 Documentation
+              <a href="https://docs.python.org/3/library/sqlite3.html" class="citation" target="_blank" rel="noopener noreferrer">SQLite3 Python Interface</a>
+            </div>
+            <div id="ref-37" class="border-l-2 border-green-500 pl-3">
+              <strong>[37]</strong> usqlite MicroPython Library
+              <a href="https://github.com/spatialdude/usqlite" class="citation" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+            </div>
+            <div id="ref-41" class="border-l-2 border-green-500 pl-3">
+              <strong>[41]</strong> SQLite with ESP32 PLC
+              <a href="https://www.industrialshields.com/blog/arduino-industrial-1/how-to-use-sqlite-with-esp32-plc-549" class="citation" target="_blank" rel="noopener noreferrer">Industrial Shields Tutorial</a>
+            </div>
+            <div id="ref-42" class="border-l-2 border-green-500 pl-3">
+              <strong>[42]</strong> ESP32 IDF SQLite3 Integration
+              <a href="https://blog.csdn.net/gitblog_01001/article/details/142430201" class="citation" target="_blank" rel="noopener noreferrer">Technical Blog Post</a>
+            </div>
+            <div id="ref-57" class="border-l-2 border-purple-500 pl-3">
+              <strong>[57]</strong> ESP32 Flash Encryption and Secure Boot
+              <a href="https://developer.espressif.com/blog/flash-encryption-and-secure-boot/" class="citation" target="_blank" rel="noopener noreferrer">Espressif Developer Blog</a>
+            </div>
+            <div id="ref-117" class="border-l-2 border-red-500 pl-3">
+              <strong>[117]</strong> Python Ed25519 Implementation
+              <a href="https://github.com/warner/python-ed25519" class="citation" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+            </div>
+            <div id="ref-146" class="border-l-2 border-purple-500 pl-3">
+              <strong>[146]</strong> mpy-mbedtls MicroPython Bindings
+              <a href="https://github.com/Carglglz/mpy-mbedtls" class="citation" target="_blank" rel="noopener noreferrer">GitHub Repository</a>
+            </div>
+            <div id="ref-157" class="border-l-2 border-blue-500 pl-3">
+              <strong>[157]</strong> sshkey-tools Python Package
+              <a href="https://pypi.org/project/sshkey-tools/" class="citation" target="_blank" rel="noopener noreferrer">PyPI Package</a>
+            </div>
+            <div id="ref-158" class="border-l-2 border-blue-500 pl-3">
+              <strong>[158]</strong> AWS EC2 Key Fingerprint Documentation
+              <a href="https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2/keypairinfo/key_fingerprint.html" class="citation" target="_blank" rel="noopener noreferrer">Boto3 Documentation</a>
+            </div>
+            <div id="ref-159" class="border-l-2 border-blue-500 pl-3">
+              <strong>[159]</strong> Cryptography.io Serialization
+              <a href="https://cryptography.io/en/latest/hazmat/primitives/asymmetric/serialization/" class="citation" target="_blank" rel="noopener noreferrer">Cryptography Documentation</a>
+            </div>
+            <div id="ref-172" class="border-l-2 border-orange-500 pl-3">
+              <strong>[172]</strong> OpenTelemetry Python Metrics
+              <a href="https://uptrace.dev/get/opentelemetry-python/metrics" class="citation" target="_blank" rel="noopener noreferrer">Uptrace Documentation</a>
+            </div>
+            <div id="ref-176" class="border-l-2 border-teal-500 pl-3">
+              <strong>[176]</strong> Python Performance Monitoring
+              <a href="https://last9.io/blog/python-performance-monitoring/" class="citation" target="_blank" rel="noopener noreferrer">Last9 Blog Post</a>
+            </div>
+            <div id="ref-177" class="border-l-2 border-indigo-500 pl-3">
+              <strong>[177]</strong> Raspberry Pi Serial Port Programming
+              <a href="https://forums.raspberrypi.com/viewtopic.php?t=152726" class="citation" target="_blank" rel="noopener noreferrer">Raspberry Pi Forum</a>
+            </div>
+            <div id="ref-178" class="border-l-2 border-indigo-500 pl-3">
+              <strong>[178]</strong> Linux Serial Port Programming
+              <a href="https://www.xanthium.in/linux-serial-port-programming-using-python-pyserial-and-arduino-avr-pic-microcontroller" class="citation" target="_blank" rel="noopener noreferrer">Xanthium Tutorial</a>
+            </div>
+            <div id="ref-179" class="border-l-2 border-indigo-500 pl-3">
+              <strong>[179]</strong> PySerial Connection Management
+              <a href="https://forum.arduino.cc/t/arduino-pyserial-only-reading-data-on-first-python-execution/1268053" class="citation" target="_blank" rel="noopener noreferrer">Arduino Forum</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-toggle').addEventListener('click', function() {
+            document.getElementById('toc').classList.toggle('open');
+        });
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                    
+                    // Close mobile menu after clicking a link
+                    document.getElementById('toc').classList.remove('open');
+                }
+            });
+        });
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const toc = document.getElementById('toc');
+            const mobileMenuButton = document.getElementById('mobile-menu-toggle');
+            
+            if (toc.classList.contains('open') && 
+                !toc.contains(event.target) && 
+                event.target !== mobileMenuButton) {
+                toc.classList.remove('open');
+            }
+        });
+    </script>
+  
+
+</body></html>
